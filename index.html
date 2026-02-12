@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Geometry Runner</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Arial, sans-serif; }
+    body {
+        background:#111;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        height:100vh;
+        overflow:hidden;
+        color:white;
+    }
+    canvas {
+        background:#1e1e1e;
+        border:3px solid #00f7ff;
+        box-shadow:0 0 20px #00f7ff;
+        display:none;
+    }
+    #ui {
+        position:absolute;
+        top:20px;
+        text-align:center;
+        width:100%;
+        font-size:20px;
+        display:none;
+    }
+    #gameOver {
+        position:absolute;
+        display:none;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        height:100%;
+        width:100%;
+        background:rgba(0,0,0,0.8);
+    }
+    button {
+        padding:10px 20px;
+        font-size:18px;
+        background:#00f7ff;
+        border:none;
+        cursor:pointer;
+        margin-top:10px;
+        transition:0.2s;
+    }
+    button:hover {
+        background:#00d0ff;
+    }
+
+    /* TEXTO NO CANTO */
+    #creditos {
+        position:fixed;
+        bottom:10px;
+        right:15px;
+        font-size:14px;
+        color:#00f7ff;
+        opacity:0.8;
+        text-shadow:0 0 5px #00f7ff;
+        pointer-events:none;
+    }
+
+    /* MENU INICIAL */
+    #menu {
+        position:absolute;
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        align-items:center;
+        height:100%;
+        width:100%;
+        background:#111;
+        text-align:center;
+    }
+    #menu h1 {
+        font-size:48px;
+        color:#00f7ff;
+        text-shadow: 0 0 20px #00f7ff;
+        margin-bottom:40px;
+    }
+    #instructions {
+        display:none;
+        margin-top:20px;
+        font-size:18px;
+        color:#fff;
+    }
+</style>
+</head>
+<body>
+
+<div id="menu">
+    <h1>MINI GEOMETRY RUNNER</h1>
+    <button onclick="startGame()">JOGAR</button>
+    <button onclick="toggleInstructions()">INSTRUÇÕES</button>
+    <div id="instructions">
+        <p>Pressione <strong>ESPACO</strong> ou clique/touch para pular obstáculos.</p>
+    </div>
+</div>
+
+<div id="ui">Pontuação: <span id="score">0</span></div>
+
+<div id="gameOver">
+    <h1>Game Over</h1>
+    <p id="finalScore"></p>
+    <button onclick="restartGame()">Reiniciar</button>
+</div>
+
+<div id="creditos">FEITO PELO RICK😎</div>
+
+<canvas id="game" width="800" height="400"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let player = {
+    x:100,
+    y:300,
+    width:40,
+    height:40,
+    dy:0,
+    gravity:0.8,
+    jumpForce:-15,
+    grounded:true
+};
+
+let obstacles = [];
+let frame = 0;
+let speed = 6;
+let score = 0;
+let gameRunning = false;
+
+function drawPlayer(){
+    ctx.fillStyle="#00f7ff";
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+}
+
+function updatePlayer(){
+    player.dy += player.gravity;
+    player.y += player.dy;
+
+    if(player.y + player.height >= 340){
+        player.y = 340 - player.height;
+        player.dy = 0;
+        player.grounded = true;
+    } else {
+        player.grounded = false;
+    }
+}
+
+function createObstacle(){
+    let height = Math.random()*40 + 20;
+    obstacles.push({
+        x:800,
+        y:340 - height,
+        width:20,
+        height:height
+    });
+}
+
+function drawObstacles(){
+    ctx.fillStyle="#ff004c";
+    obstacles.forEach(o=>{
+        ctx.fillRect(o.x, o.y, o.width, o.height);
+    });
+}
+
+function updateObstacles(){
+    obstacles.forEach(o=> o.x -= speed);
+    obstacles = obstacles.filter(o => o.x + o.width > 0);
+
+    if(frame % 90 === 0){
+        createObstacle();
+    }
+}
+
+function checkCollision(){
+    for(let o of obstacles){
+        if(player.x < o.x + o.width &&
+           player.x + player.width > o.x &&
+           player.y < o.y + o.height &&
+           player.y + player.height > o.y){
+            endGame();
+        }
+    }
+}
+
+function drawGround(){
+    ctx.fillStyle="#444";
+    ctx.fillRect(0,340,800,60);
+}
+
+function gameLoop(){
+    if(!gameRunning) return;
+
+    ctx.clearRect(0,0,800,400);
+    drawGround();
+    updatePlayer();
+    drawPlayer();
+    updateObstacles();
+    drawObstacles();
+    checkCollision();
+
+    frame++;
+    score++;
+    document.getElementById("score").textContent = score;
+
+    requestAnimationFrame(gameLoop);
+}
+
+function jump(){
+    if(player.grounded){
+        player.dy = player.jumpForce;
+    }
+}
+
+function endGame(){
+    gameRunning = false;
+    document.getElementById("gameOver").style.display="flex";
+}
+
+function restartGame(){
+    player.y = 300;
+    player.dy = 0;
+    obstacles = [];
+    score = 0;
+    frame = 0;
+    gameRunning = true;
+    document.getElementById("gameOver").style.display="none";
+    gameLoop();
+}
+
+function startGame(){
+    document.getElementById("menu").style.display="none";
+    canvas.style.display="block";
+    document.getElementById("ui").style.display="block";
+    gameRunning = true;
+    gameLoop();
+}
+
+function toggleInstructions(){
+    const instr = document.getElementById("instructions");
+    instr.style.display = instr.style.display === "none" ? "block" : "none";
+}
+
+document.addEventListener("keydown", e=>{
+    if(e.code==="Space") jump();
+});
+canvas.addEventListener("click", jump);
+canvas.addEventListener("touchstart", jump);
+</script>
+
+</body>
+</html>
